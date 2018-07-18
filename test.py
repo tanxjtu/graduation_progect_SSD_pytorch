@@ -93,5 +93,6 @@ def test_voc():
              BaseTransform(net.size, (104, 117, 123)),
              thresh=args.visual_threshold)
 
-if __name__ == '__main__':
-    test_voc()
+# if __name__ == '__main__':
+#     test_voc()
+test_voc()

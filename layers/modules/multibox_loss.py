@@ -64,33 +64,33 @@ class MultiBoxLoss(nn.Module):
         num_classes = self.num_classes
 
         # match priors (default boxes) and ground truth boxes
-        loc_t = torch.Tensor(num, num_priors, 4)
-        conf_t = torch.LongTensor(num, num_priors)
-        for idx in range(num):
+        loc_t = torch.Tensor(num, num_priors, 4)   # num = 32,num_priors = 8732 4  (32,8732,4)
+        conf_t = torch.LongTensor(num, num_priors)  # (32,8732)
+        for idx in range(num):   #  0-32
             truths = targets[idx][:, :-1].data
             labels = targets[idx][:, -1].data
             defaults = priors.data
             match(self.threshold, truths, defaults, self.variance, labels,
-                  loc_t, conf_t, idx)
+                  loc_t, conf_t, idx)  #0.5   ground truth  8734*4   [0.1,0.2]  singleimage imput  torch.Size([32, 8732, 4])  torch.Size([32, 8732])
         if self.use_gpu:
-            loc_t = loc_t.cuda()
-            conf_t = conf_t.cuda()
+            loc_t = loc_t.cuda()         # the loss of Gt vs prior-box
+            conf_t = conf_t.cuda()       # the number of prior boxes selected to train for each photo
         # wrap targets
         loc_t = Variable(loc_t, requires_grad=False)
-        conf_t = Variable(conf_t, requires_grad=False)
+        conf_t = Variable(conf_t, requires_grad=False)   # contain the label information
 
-        pos = conf_t > 0
-        num_pos = pos.sum(dim=1, keepdim=True)
+        pos = conf_t > 0    # which default boxes are selected   32*8732
+        num_pos = pos.sum(dim=1, keepdim=True)   # OK the same as me  how many the default box selected
 
         # Localization Loss (Smooth L1)
         # Shape: [batch,num_priors,4]
         pos_idx = pos.unsqueeze(pos.dim()).expand_as(loc_data)
         loc_p = loc_data[pos_idx].view(-1, 4)
         loc_t = loc_t[pos_idx].view(-1, 4)
-        loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
+        loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)    # select the positive prior box (IoU >0.5) and cprresponding net loc output
 
         # Compute max conf across batch for hard negative mining
-        batch_conf = conf_data.view(-1, self.num_classes)
+        batch_conf = conf_data.view(-1, self.num_classes)    # change the form from (32,8732,11) to (32*8732,11)
         loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
 
         # Hard Negative Mining

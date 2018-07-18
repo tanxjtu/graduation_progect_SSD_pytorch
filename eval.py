@@ -14,6 +14,8 @@ from data import VOC_CLASSES as labelmap
 import torch.utils.data as data
 
 from ssd import build_ssd
+from PIL import Image
+import matplotlib.pyplot as plt
 
 import sys
 import os
@@ -377,7 +379,10 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
 
     for i in range(num_images):
         im, gt, h, w = dataset.pull_item(i)
-
+        # show = im[:, :, :].numpy().transpose(1, 2, 0)
+        # plt.figure("testIMg")
+        # plt.imshow(show)
+        # plt.show()
         x = Variable(im.unsqueeze(0))
         if args.cuda:
             x = x.cuda()

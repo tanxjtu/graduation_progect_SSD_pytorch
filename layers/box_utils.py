@@ -59,16 +59,16 @@ def jaccard(box_a, box_b):
     Return:
         jaccard overlap: (tensor) Shape: [box_a.size(0), box_b.size(0)]
     """
-    inter = intersect(box_a, box_b)
+    inter = intersect(box_a, box_b)    # the area of A ∩ B   OK Tested
     area_a = ((box_a[:, 2]-box_a[:, 0]) *
               (box_a[:, 3]-box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
     area_b = ((box_b[:, 2]-box_b[:, 0]) *
               (box_b[:, 3]-box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
     union = area_a + area_b - inter
-    return inter / union  # [A,B]
+    return inter / union  # [A,B]     #IoU Haoliangtan  tested
 
 
-def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
+def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):     # enter first
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
     corresponding to both confidence and location preds.
@@ -88,13 +88,13 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     # jaccard index
     overlaps = jaccard(
         truths,
-        point_form(priors)
-    )
+        point_form(priors)  #priors.size() torch.Size([8732, 4])       point_form return the x1,y1,x2,y2, of the prior box
+    )   #retunrn IoU   8734    torch.Size([1, 8732])
     # (Bipartite Matching)
     # [1,num_objects] best prior for each ground truth
-    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
+    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True) # bestprioroverlap: 0.92400.68230.6275   best_prior_idx  8729 8731 8729    ling
     # [1,num_priors] best ground truth for each prior
-    best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
+    best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)    # best_truth_overlap torch.Size([1, 8732])   best_truth_idx :torch.Size([1, 8732])
     best_truth_idx.squeeze_(0)
     best_truth_overlap.squeeze_(0)
     best_prior_idx.squeeze_(1)
@@ -106,10 +106,10 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
         best_truth_idx[best_prior_idx[j]] = j
     matches = truths[best_truth_idx]          # Shape: [num_priors,4]
     conf = labels[best_truth_idx] + 1         # Shape: [num_priors]
-    conf[best_truth_overlap < threshold] = 0  # label as background
-    loc = encode(matches, priors, variances)
+    conf[best_truth_overlap < threshold] = 0  # label as background   # the number the final default boxes selected such as 6  (6 in 8732)
+    loc = encode(matches, priors, variances)   # match GT    priors prior boxes <class 'list'>: [0.1, 0.2]
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
-    conf_t[idx] = conf  # [num_priors] top class label for each prior
+    conf_t[idx] = conf  # [num_priors] top class label for each prior     thl num  of default box selected  such as 7   2 10
 
 
 def encode(matched, priors, variances):
@@ -126,9 +126,9 @@ def encode(matched, priors, variances):
     """
 
     # dist b/t match center and prior's center
-    g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]
+    g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]    #match  : the image ground truth    the center distance between Gt and Prior boxes
     # encode variance
-    g_cxcy /= (variances[0] * priors[:, 2:])
+    g_cxcy /= (variances[0] * priors[:, 2:])     # div the scale
     # match wh / prior wh
     g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
     g_wh = torch.log(g_wh) / variances[1]
